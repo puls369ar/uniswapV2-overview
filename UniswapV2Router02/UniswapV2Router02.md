@@ -1,83 +1,111 @@
-# Constructor
-It takes two parameters for arguments `_WETH` and `_factory`. We may deploy our Uniswap contract to the L2 sidechains, in that case the address of it's native wrapped token will be different. So we set this addressin UniswapV2Router's constructor
+# UniswapV2Router02 [Contract](https://github.com/Uniswap/v2-periphery/blob/master/contracts/UniswapV2Router02.sol)
+
+The contract that describes token pair inside the liquidity pool of UniswapV2
 
 
-# Concepts
-Before proceeding to functions let's understand two important concepts implemented in the contract
-* _**FeeOnTransfer**_ 
-(`IUniswapV2Router02` expands `IUniswapV2Router01` by providing FeeOnTransfer Functionality) 
-Fee-on-Transfer support refers to a mechanism in some ERC-20 tokens where a portion of the transferred
-amount is deducted as a fee whenever tokens are sent or swapped. This fee is often redistributed or burned, 
-depending on the token's design, and is implemented to incentivize holding or contributing to the project's development.
 
-* _**withPermit**_
-When removing liquidity we should sign on transactions to let the router access our tokens and send them back
-to us, this problem isn’t actual when creating the liquidity, because we send the tokens ourselves to the router.
+# Modifiers
+`ensure` - checks if the value of `deadline` is bigger then `block.timestamp`
 
+# Variables&Constants
+* `address public immutable override factory` - Address of the `UniswapV2Factory` instance to communicate with
+* `address public immutable override WETH` - Address of the used chain's wrapped native token  
 
-# Liquidity
+# Functions
+* `constructor(address _factory, address _WETH)` - It takes two parameters for arguments `_WETH` and `_factory`. We may deploy our Uniswap contract to other EVM compatible chains. In that case the address of it's native wrapped token will be different
 
-`_addliquidity` function is wrapped by two liquidity creation functions
-* addLiquidity
-* addLiquidityETH
-
-Liquidity removal functions also have their variations where they implement withPermit and FeeOnTransfer functionality. The latest is a mandatory to manage fee-demanding tokens while those are being transferred back to the holder (when creating we pay it separately, not from the tokens provided for the liquidity)
-WhyETH?
-* removeLiquidity
-* removeLiquidityETH
-* removeLiquidityETHSupportingFeeOnTransferTokens
-* removeLiquidityWithPermit
-* removeLiquidityETHWithPermit
-* removeLiquidityETHWithPermitSupportingFeeOnTransferTokens
-
-# Swap
-
-To understand nine variations of swap functions inside `UniswapV2Router02` we separate three swappable entities
-* exactToken - Token,amount of which we provide
-* Token - Token, amount of which is determined the Contract’s by AMM logic
-* ETH  - ETH wrapped by it’s ERC20 WETH version that we provide or get after the swap
-
-Now when we make all the possible combinations from this three and add FeeOnTransfer functionality variations too,we get
+Key functions
+* `addLiquidity(
+      address tokenA,
+      address tokenB,
+      uint amountADesired,
+      uint amountBDesired,
+      uint amountAMin,
+      uint amountBMin
+    )` - by using core helper `_addLiquidity()` function it gets valid amounts and transfers (using `SafeTransfer.transferFrom()`) tokens to the `UniswapV2Pair` instance (got by `UniswapV2Library.pairFor()` function having token addresses and `factory` s an input) and after LP token is minted from that instance to the given address
+* `addLiquidityETHaddress token,
+        uint amountTokenDesired,
+        uint amountTokenMin,
+        uint amountETHMin,
+        address to,
+        uint deadline
+)` - Has the same purpose as `addLiquidity` but for ETH/Token pairs
 
 
-* exactToken->Token + FeeOnTransfer
-* exactToken->Token - We provide exact amount for “investing” token and get calculated amount of “returning” Token
-* Token->exactToken - We provide exact amount for “returning” token and get calculated amount of “investing” Token
+Removal functions have their variations where they implement *withPermit* and *FeeOnTransfer* functionalities. The latest is a mandatory to manage fee-demanding tokens while those are being transferred back to the holder (when creating we pay it separately, not from the tokens provided for the liquidity)
 
-* ETH->Token  + FeeOnTransfer
-* ETH->Token - We provide exact amount for “investing” ETH token and get calculated amount of “returning” Token
-* Token->ETH - We provide exact amount for “returning” ETH token and get calculated amount of “investing” Token
+* `removeLiquidity(
+        tokenA,
+        address tokenB,
+        uint liquidity,
+        uint amountAMin,
+        uint amountBMin,
+        address to,
+        uint deadline`) - `UniswapV2Pair()` instance is restored by `UniswapV2Library.pairFor()` function from token and `factory` addresses. After which the LP token is returned from the holder and the tokens inside are returned back to the holder (specified address). Functions below implement the same behaviour, but for ETH/Token pairs and functionalities mentioned above
+* `removeLiquidityETH`
+* `removeLiquidityETHSupportingFeeOnTransferTokens`
+* `removeLiquidityWithPermit`
+* `removeLiquidityETHWithPermit`
+* `removeLiquidityETHWithPermitSupportingFeeOnTransferTokens`
 
-* exactToken->ETH  + FeeOnTransfer
-* exactToken->ETH - We provide exact amount for “investing” token and get calculated amount of “returning” ETH Token
-* ETH->exactToken - We provide exact amount for “returning” token and get calculated amount of “investing” ETH Token
+Swap functions also provide different variations for the tokens that need *Fee on Transfer*
 
-Note that we don’t have separate FeeOnTransfer supporting functions for the ones that provide”returning” token amount. That is because the the “investing” token amount in this case come with the fee already reduced from it. Unlike the functions where we provide “investing” token amount we also need to get
-fees separately depended on this amount that we are gonna send. By the way all functions are wrapped around internal `_swap` function, except the ones that are FeeOnTransfer support. Those use `_swapSupportingFeeOnTransferTokens` internal function
+We provide exact amount for “investing” token and get calculated amount of “returning” Token
+* `swapExactTokensForTokens`
+* `swapExactTokensForTokensSupportingFeeOnTransferTokens`
 
-# Library
+We provide exact amount for “investing” ETH token and get calculated amount of “returning” Token
+* `swapExactETHForTokens`
+* `swapExactETHForTokensSupportingFeeOnTransferTokens`
 
-Inside these swap functions helper functions are used that are defined in same contract at the lowest section
+We provide exact amount for “returning” token and get calculated amount of “investing” Token
+* `swapTokensForExactTokens`
 
-* quote: This function calculates the equivalent amount of token B for a given amount of token A based on their reserves. It takes three arguments: the amount of token A, the reserve of token A, and the reserve of token B. It returns the calculated amount of token B.
-* getAmountOut: This function determines the amount of output tokens that will be received from a swap given a specific input amount. It requires the amount of input tokens, the reserve of the input token, the reserve of the output token, and the address of the pair. It returns the amount of output tokens.
-* getAmountIn: This function calculates the amount of input tokens needed to obtain a specified amount of output tokens based on the current reserves. It takes the amount of output tokens, the reserve of the input token, the reserve of the output token, and the pair address as arguments. It returns the required amount of input tokens.
-* getAmountsOut: This function returns the amounts of tokens required for a multi-hop swap given an input amount and a path of token addresses. It takes the amount of input tokens and an array of token addresses as parameters. It returns an array of amounts corresponding to each token in the path.
-* getAmountsIn: Similar to getAmountsOut, this function provides the amounts of tokens needed for a multi-hop swap to achieve a specified output amount. It takes the output amount and an array of token addresses as input. It returns an array of amounts corresponding to each token in the path.
+We provide exact amount for “returning” ETH token and get calculated amount of “investing” Token
+* `swapTokensForExactETH`
+
+We provide exact amount for “investing” token and get calculated amount of “returning” ETH Token
+* `swapExactTokensForETH`
+* `swapExactTokensForETHSupportingFeeOnTransferTokens`
+
+We provide exact amount for “returning” token and get calculated amount of “investing” ETH Token
+* `swapETHForExactTokens`
+
+All of them function almost the same. Let's view the one
+`function swapExactTokensForTokens(
+        uint amountIn,
+        uint amountOutMin,
+        address[] calldata path,
+        address to,
+        uint deadline
+)` - First it calls `UniswapV2Library.getAmountsOut()` function by providing `factory` and inputed amount and token's addresses wrapped in an array. As a result it get's the amount that will be returned to him duirng the swap together with inputed token amount in one array. Then the transfer is performed by `SafeTransfer.transferFrom()` function where **caller** sends tokens to the liquidity pair. Inside core `_swap()` function that is the next line code, instance of appropriate `UniswapV2Pair` contract is created and amounts of another token are transferred back to the specified address via `UniswapV2Pair::swap()` function 
+
+
+
+Helper core functions
+* `function _addLiquidity(
+        address tokenA,
+        address tokenB,
+        uint amountADesired,
+        uint amountBDesired,
+        uint amountAMin,
+        uint amountBMin
+)` - 
+
+* `function _swap(uint[] memory amounts, address[] memory path, address _to)` - instance of appropriate `UniswapV2Pair` contract is created and amounts of another token that are in the pool are transferred back to the specified address via `UniswapV2Pair::swap()` function
+
+
+# Second Party Contracts, Libraries, Interfaces
+* `IUniswapV2Router02` – Main interface to inherit from
+* `IERC20`, `IUniswapV2Factory`, `IWETH`  – To create instances
+* `TransferHelper` - This library provides set of functions to execute token transfers safe
+* `UniswapV2Library` - Library with functions to work with `UniswapV2Pair` instances, in our case restoring the one from `factory` and token 
+  addresses for example
+* `SafeMath` -  provides arithmetic functions with built-in safety checks to prevent common issues like integer overflow and underflow. It expands 
+  functionality of type `uint` in our contract
+
 
 # Interface Diagram
 UniswapV2Router->IUniswapV2Router02->IUniswapV2Router01
-
-Interfaces for instance creation and external contract instances interaction
-* IUniswapV2Factory
-* IERC20
-* IUniswapV2Pair
-
-Libraries
-* SafeMath
-* TransferHelper
-* UniswapV2Library
-  
-
 
 
