@@ -1,6 +1,14 @@
 # Description
-
 This project demonstrates a basic Hardhat use case. It comes with a UniswapV2 contract, a test for that contract, and a Hardhat Ignition module that deploys that contract.
+Install hardhat
+```shell
+npm install --save-dev hardhat
+```
+
+create the project
+```shell
+npx hardhat init
+```
 
 `.sol` dApps are stored in `contracts` folder. Deployment scripts are in `ignition/modules` and test scripts (nor used, neither modified yet) are in `test` folder.
 
